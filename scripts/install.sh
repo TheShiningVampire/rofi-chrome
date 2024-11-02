@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 OS="$(uname -s)"
@@ -24,9 +24,9 @@ main() {
   print_horizontal_line
 
   # Dependencies
-  printf "${green}Checking Dependencies${none}: python2 rofi\n"
+  printf "${green}Checking Dependencies${none}: python3 rofi\n"
 
-  check_dependency python2 Python2 https://www.python.org
+  check_dependency python3 Python3 https://www.python.org
   check_dependency rofi rofi https://github.com/davatorium/rofi
   
   print_horizontal_line

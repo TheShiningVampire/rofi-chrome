@@ -1,61 +1,48 @@
-#!/usr/bin/python2
+#!/usr/bin/env python3
 
-import struct
 import sys
 import json
 import subprocess
+from typing import TypedDict, Any
 
-def send_message(message):
-  sys.stdout.write(struct.pack('I', len(message)))
-  sys.stdout.write(message)
-  sys.stdout.flush()
+class Params(TypedDict):
+  rofi_flags: list[str]
+  choices: list[str]
+  info: Any
 
-def log(msg):
-  pass
 
-def call_rofi(param):
-  options = param['opts']
-  rofi_opts = ['rofi', '-dmenu']
-  if 'rofi-opts' in param:
-    rofi_opts.extend(param['rofi-opts'])
+def send_message(message: bytes):
+  _written = sys.stdout.buffer.write(len(message).to_bytes(4, byteorder='little'))
+  _written = sys.stdout.buffer.write(message)
+  _none = sys.stdout.flush()
 
-  sh = subprocess.Popen(rofi_opts, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-  sh.stdin.write('\n'.join(map(lambda x: x.encode('utf8'), options)))
-  sh.stdin.flush()
-  sh.stdin.close()
 
-  return sh.stdout.read().strip()
+def call_rofi(param: Params):
+  rofi_cmd = ['rofi', '-dmenu'] + param['rofi_flags']
+  choices = param['choices']
+
+  sh = subprocess.Popen(rofi_cmd, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+  stdout, _stderr = sh.communicate('\n'.join(choices).encode('raw_unicode_escape'))
+
+  return stdout.decode('raw_unicode_escape')
+
 
 def main():
-  log('launched')
   while True:
-    data_length_bytes = sys.stdin.read(4)
+    data_length_bytes = sys.stdin.buffer.read(4).decode('raw_unicode_escape')
 
     if len(data_length_bytes) == 0:
       break
-    
-    data_length = struct.unpack('i', data_length_bytes)[0]
-    data = sys.stdin.read(data_length).decode('utf-8')
-    data = json.loads(data)
-    log(data)
-    
-    cmd = data['cmd']
-    param = data['param']
-    info = data['info']
-    if cmd == 'dmenu':
-      output = {
-        'cmd': 'dmenu',
-        'result': call_rofi(param),
-        'info': info
-      }
-    else:
-      output = {
-        'result': 'unknow command: {}'.foramt(cmd)
-      }
-    send_message(json.dumps(output))
 
+    data_length = int.from_bytes(data_length_bytes.encode('raw_unicode_escape'), byteorder='little')
+    data = sys.stdin.buffer.read(data_length).decode('raw_unicode_escape')
 
-  sys.exit(0)
+    params: Params = json.loads(data)
+    response = {
+      'result': call_rofi(params),
+      'info': params['info']
+    }
+    send_message(json.dumps(response).encode('raw_unicode_escape'))
 
 
 if __name__ == '__main__':

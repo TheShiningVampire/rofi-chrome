@@ -39,10 +39,8 @@ const CMDS = {
       state.port.postMessage({
         'cmd': 'dmenu',
         'info': 'switchTab',
-        'param': {
-          'rofi-opts': ['-i', '-p', 'tab'],
-          'opts': tabs.map(e => (e.id) + ': ' + e.title + ' ::: ' + e.url),
-        }
+        'rofi_flags': ['-i', '-p', 'tab'],
+        'choices': tabs.map(e => (e.id) + ': ' + e.title + ' ::: ' + e.url),
       });
     });
   },
@@ -52,10 +50,8 @@ const CMDS = {
       state.port.postMessage({
         'cmd': 'dmenu',
         'info': 'openHistory',
-        'param': {
-          'rofi-opts': ['-matching', 'normal', '-i', '-p', 'history'],
-          'opts': results.map(e => e.title + ' ::: ' + e.url),
-        }
+        'rofi_flags': ['-matching', 'normal', '-i', '-p', 'history'],
+        'choices': results.map(e => e.title + ' ::: ' + e.url),
       });
     });
   },
@@ -73,10 +69,8 @@ const CMDS = {
         state.port.postMessage({
           'cmd': 'dmenu',
           'info': 'changeToPage',
-          'param': {
-            'rofi-opts': ['-matching', 'normal', '-i', '-p', 'page'],
-            'opts': results.filter(e => e.url.indexOf(pageOrigin) === 0).map(e => e.title + ' ::: ' + e.url),
-          }
+          'rofi_flags': ['-matching', 'normal', '-i', '-p', 'page'],
+          'choices': results.filter(e => e.url.indexOf(pageOrigin) === 0).map(e => e.title + ' ::: ' + e.url),
         });
       });
     });
@@ -86,6 +80,7 @@ const CMDS = {
 /*** listeners ***/
 
 function onNativeMessage(message) {
+  console.log({ message });
   if (message.info === 'switchTab' && message.result !== '') {
     goToTab(parseInt(message.result.split(': ')[0]));
   } else if (message.info === 'openHistory' && message.result !== '') {
