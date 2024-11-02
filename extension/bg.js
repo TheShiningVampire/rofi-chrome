@@ -37,7 +37,6 @@ const CMDS = {
   switchTab() {
     chrome.tabs.query({}, function (tabs) {
       state.port.postMessage({
-        'cmd': 'dmenu',
         'info': 'switchTab',
         'rofi_flags': ['-i', '-p', 'tab'],
         'choices': tabs.map(e => (e.id) + ': ' + e.title + ' ::: ' + e.url),
@@ -48,7 +47,6 @@ const CMDS = {
   openHistory() {
     refreshHistory(function (results) {
       state.port.postMessage({
-        'cmd': 'dmenu',
         'info': 'openHistory',
         'rofi_flags': ['-matching', 'normal', '-i', '-p', 'history'],
         'choices': results.map(e => e.title + ' ::: ' + e.url),
@@ -67,7 +65,6 @@ const CMDS = {
 
       refreshHistory(function (results) {
         state.port.postMessage({
-          'cmd': 'dmenu',
           'info': 'changeToPage',
           'rofi_flags': ['-matching', 'normal', '-i', '-p', 'page'],
           'choices': results.filter(e => e.url.indexOf(pageOrigin) === 0).map(e => e.title + ' ::: ' + e.url),
@@ -80,6 +77,7 @@ const CMDS = {
 /*** listeners ***/
 
 function onNativeMessage(message) {
+  console.log({ message });
   if (message.info === 'switchTab' && message.result !== '') {
     goToTab(parseInt(message.result.split(': ')[0]));
   } else if (message.info === 'openHistory' && message.result !== '') {
