@@ -80,7 +80,6 @@ const CMDS = {
 /*** listeners ***/
 
 function onNativeMessage(message) {
-  console.log({ message });
   if (message.info === 'switchTab' && message.result !== '') {
     goToTab(parseInt(message.result.split(': ')[0]));
   } else if (message.info === 'openHistory' && message.result !== '') {
@@ -145,3 +144,4 @@ function main() {
 };
 
 main();
+
