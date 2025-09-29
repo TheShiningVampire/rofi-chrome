@@ -94,41 +94,44 @@ function onNativeMessage(message) {
   } else if (message.result === '') {
     // do nothing
   } else {
-    alert(JSON.stringify(message));
+    // Use notification instead of alert
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon.png', // Add a valid icon to your extension directory
+      title: 'rofi-chrome',
+      message: JSON.stringify(message),
+    });
   }
-
-  // console.log("Received message: " + JSON.stringify(message));
 }
 
 function onDisconnected() {
-  alert("Failed to connect: " + chrome.runtime.lastError.message);
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icon.png',
+    title: 'rofi-chrome',
+    message: "Failed to connect: " + chrome.runtime.lastError.message,
+  });
   state.port = null;
 }
 
 function addChromeListeners() {
-  const listeners = {
-    commands: {
-      onCommand: function (command) {
-        if (command in CMDS) {
-          CMDS[command]();
-        } else {
-          alert('unknown command: ' + command)
-        }
-      }
-    },
-    tabs: {
-      onActivated: function (activeInfo) {
-        state.lastTabId[1] = state.lastTabId[0];
-        state.lastTabId[0] = activeInfo.tabId;
-      }
+  chrome.commands.onCommand.addListener(command => {
+    if (command in CMDS) {
+      CMDS[command]();
+    } else {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon.png',
+        title: 'rofi-chrome',
+        message: 'unknown command: ' + command,
+      });
     }
-  };
+  });
 
-  for (let api in listeners) {
-    for (let method in listeners[api]) {
-      chrome[api][method].addListener(listeners[api][method]);
-    }
-  }
+  chrome.tabs.onActivated.addListener(activeInfo => {
+    state.lastTabId[1] = state.lastTabId[0];
+    state.lastTabId[0] = activeInfo.tabId;
+  });
 }
 
 /*** main ***/
