@@ -3,4 +3,5 @@ host/log-file
 *.mp4
 *.pem
 *.crx
+*.mkv
 .vscode/
