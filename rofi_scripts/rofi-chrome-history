@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+import os, json, sqlite3, pathlib, subprocess, sys
+
+JSON_PATH = "/tmp/rofi_chrome_history.json"
+LIMIT = 1000
+
+def print_item(title, url):
+    # Rofi info payload so selection can open the URL
+    payload = json.dumps({"op": "open", "url": url}, separators=(",",":"))
+    print(f"[Hist] {title} — {url}\x00info\x1f{payload}")
+
+def list_from_json():
+    p = pathlib.Path(JSON_PATH)
+    if not p.exists():
+        return False
+    try:
+        arr = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    if not arr:
+        print("No history items (JSON dump was empty)\x00nonselectable\x1ftrue")
+        return True
+    for h in arr[:LIMIT]:
+        title = (h.get("title") or "(no title)").strip()
+        url = (h.get("url") or "").strip()
+        if not url or url.startswith("chrome://"):
+            continue
+        print_item(title, url)
+    return True
+
+# --------- Fallback: read Chrome SQLite directly ----------
+def find_profiles():
+    homes = [
+        pathlib.Path.home() / ".config" / "google-chrome",
+        pathlib.Path.home() / ".config" / "chromium",
+    ]
+    profiles = []
+    for base in homes:
+        if not base.exists():
+            continue
+        for prof in base.iterdir():
+            if not prof.is_dir():
+                continue
+            # Typical names: Default, Profile 1, Profile 2
+            if (prof / "History").exists():
+                profiles.append(prof)
+    # sort by History mtime desc (newest first)
+    profiles.sort(key=lambda p: (p / "History").stat().st_mtime, reverse=True)
+    return profiles
+
+def safe_copy_db(src_hist: pathlib.Path):
+    tmp = pathlib.Path("/tmp/rofi_chrome_history.sqlite")
+    try:
+        # copy main db
+        tmp.write_bytes(src_hist.read_bytes())
+        # also copy -wal if exists to include recent writes
+        wal = src_hist.parent / (src_hist.name + "-wal")
+        if wal.exists():
+            (tmp.parent / (tmp.name + "-wal")).write_bytes(wal.read_bytes())
+        # (shm not needed for read)
+        return tmp
+    except Exception:
+        return None
+
+def list_from_db():
+    profiles = find_profiles()
+    if not profiles:
+        print("No Chrome/Chromium history DB found (Default or Profile 1?)\x00nonselectable\x1ftrue")
+        return
+    shown_any = False
+    for prof in profiles:
+        src = prof / "History"
+        tmp = safe_copy_db(src)
+        if not tmp:
+            continue
+        try:
+            con = sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)
+            cur = con.cursor()
+            cur.execute("""
+                SELECT title, url
+                FROM urls
+                WHERE url NOT LIKE 'chrome://%%'
+                ORDER BY last_visit_time DESC
+                LIMIT ?
+            """, (LIMIT,))
+            rows = cur.fetchall()
+        except Exception:
+            rows = []
+        finally:
+            try: con.close()
+            except: pass
+        if rows:
+            # Label the profile once (nonselectable header)
+            header = f"— History ({prof.name}) —\x00nonselectable\x1ftrue"
+            print(header)
+            for title, url in rows:
+                title = (title or "(no title)").strip()
+                if not url:
+                    continue
+                print_item(title, url)
+            shown_any = True
+            break  # show only the newest profile by default
+    if not shown_any:
+        print("History DB readable, but no items.\x00nonselectable\x1ftrue")
+
+def run_mode():
+    info = os.environ.get("ROFI_INFO")
+    if not info:
+        return
+    try:
+        payload = json.loads(info)
+    except Exception:
+        return
+    if payload.get("op") == "open" and payload.get("url"):
+        try:
+            subprocess.Popen(["xdg-open", payload["url"]])
+        except Exception:
+            pass
+
+if __name__ == "__main__":
+    if os.environ.get("ROFI_RETV") == "0":
+        if not list_from_json():
+            list_from_db()
+    else:
+        run_mode()
+
