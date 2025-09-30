@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+import os, sys, json, socket, pathlib
+
+JSON_PATH = "/tmp/rofi_chrome_tabs.json"
+SOCK_PATH = "/tmp/rofi_chrome.sock"
+
+def load_tabs():
+    p = pathlib.Path(JSON_PATH)
+    if not p.exists():
+        return []
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+def list_mode():
+    tabs = load_tabs()
+    if not tabs:
+        print("No live tab dump. Launch via extension hotkey.\x00nonselectable\x1ftrue")
+        return
+    for t in tabs:
+        title = t.get("title") or "(no title)"
+        url = t.get("url") or ""
+        info = json.dumps({"op":"focus","id": t.get("id"), "win": t.get("windowId")}, separators=(",",":"))
+        print(f"[Tab] {title} — {url}\x00info\x1f{info}")
+
+def focus_via_socket(payload: dict):
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(0.2)
+        s.connect(SOCK_PATH)
+        s.sendall(json.dumps(payload).encode("utf-8"))
+        s.close()
+    except Exception:
+        pass
+
+def run_mode():
+    info = os.environ.get("ROFI_INFO")
+    if not info:
+        return
+    try:
+        payload = json.loads(info)
+    except Exception:
+        return
+    if payload.get("op") == "focus" and payload.get("id") is not None:
+        focus_via_socket(payload)
+
+if __name__ == "__main__":
+    if os.environ.get("ROFI_RETV") == "0":
+        list_mode()
+    else:
+        run_mode()
+
