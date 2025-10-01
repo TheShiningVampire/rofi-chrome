@@ -49,7 +49,7 @@ This project is forked from [rofi-chrome](https://github.com/RKest/rofi-chrome) 
 4) Make the main.py script executable:
 
     ```sh
-    chmod +x scripts/main.py
+    chmod +x host/main.py
     ```
 
 5) Add scripts to make the `tab` and `history` commands available in rofi.
